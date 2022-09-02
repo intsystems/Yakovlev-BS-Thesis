@@ -1,0 +1,316 @@
+\documentclass[aspectratio=169]{beamer}
+\beamertemplatenavigationsymbolsempty
+\usecolortheme{beaver}
+\setbeamertemplate{blocks}[rounded=true, shadow=true]
+\setbeamertemplate{footline}[page number]
+
+
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage[english,russian]{babel}
+
+
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{amssymb,amsfonts,amsmath,mathtext}
+%\usepackage{subfig}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage[all]{xy} % xy package for diagrams
+\usepackage{array}
+\usepackage{multicol}% many columns in slide
+\usepackage{hyperref}% urls
+\usepackage{hhline}%tables
+% Your figures are here:
+\graphicspath{ {fig/} {../fig/} }
+
+\definecolor{ao(english)}{rgb}{0.0, 0.5, 0.0}
+\definecolor{bleudefrance}{rgb}{0.19, 0.55, 0.91}
+
+%----------------------------------------------------------------------------------------------------------
+\title[\hbox to 56mm{Feature generation}]{Дифференцируемый алгоритм поиска архитектуры с контролем сложности}
+\author{К.\,Д.~Яковлев\inst{1} \and
+О.\,С.~Гребенькова\inst{1} \and
+О.\,Ю.~Бахтеев\inst{1,2}\and В.\,В.~Стрижов\inst{1,2} \\  \tt{\footnotesize \{iakovlev.kd, grebenkova.os, bakhteev, strijov\}@phystech.edu }}
+\institute{\inst{1} Москва, Московский физико-технический институт \and \inst{2} Москва, Вычислительный центр им. А.А. Дородницына ФИЦ ИУ РАН}
+\date{2021}
+%----------------------------------------------------------------------------------------------------------
+\begin{document}
+%----------------------------------------------------------------------------------------------------------
+\begin{frame}
+\thispagestyle{empty}
+\maketitle
+\end{frame}
+%-----------------------------------------------------------------------------------------------------
+\begin{frame}{Цель исследования}
+
+\begin{block}{Цель} 
+Предложить метод поиска архитектуры модели глубокого обучения с контролем сложности модели.
+\end{block}
+
+~\\
+\begin{block}{Проблема}
+Модели глубокого обучения имеет избытычное число параметров.  Поиск архитектуры на дискретном множестве является вычислительно сложной задачей. 
+\end{block}
+~\\
+\begin{block}{Метод решения}
+
+Предлагаемый метод основан на непрерывной релаксации. Структурные параметры задаются гиперсетью, зависящей от коэффициента, задающего сложность архитектуры. Под гиперсетью понимается модель, порождающая параметры оптимизируемой модели.
+\end{block}
+
+\end{frame}
+
+%----------------------------------------------------------------------------------------------------------
+
+
+\begin{frame}{Основная литература}
+\begin{thebibliography}{1}
+
+
+\bibitem{darts} 
+Hanxiao Liu and Karen Simonyan and Yiming Yang. 
+\textit{DARTS: Differentiable Architecture Search}.
+CoRR, 2018.
+
+\bibitem{hypernet} 
+David Ha and Andrew M. Dai and Quoc V. Le.
+\textit{HyperNetworks}. 
+CoRR, 2016.
+
+\bibitem{Grebenkova}
+Grebenkova, O., Bakhteev, O.Y., Strijov, V.
+\textit{Variational deep learning model optimization with complexity control}
+2021
+
+\bibitem{GumbelSoftmax}
+Jang, E., Gu, S., Poole, B.
+\textit{Categorical reparameterization with gumbel-softmax}.
+CoRR, 2016.
+
+\end{thebibliography}	
+\end{frame}
+
+\begin{frame}{Постановка задачи поиска архитектуры}
+\begin{itemize}
+\item Архитектура модели представляет собой ориентированный ациклический граф. Каждому ребру ставится в соответствие отображение $\boldsymbol{g}^{(i, j)}$, причем
+\[
+\boldsymbol x^{(j)} = \sum_{i < j}\boldsymbol{g}^{(i, j)}(\boldsymbol{x}^{(i)}).
+\]
+\item Пусть вектор $\vec{\boldsymbol g}^{(i, j)}$ -- вектор, составленный из доступных для ребра $(i, j)$ отображений. Пусть вектор $\boldsymbol\alpha^{(i, j)}$ -- вектор структурных параметров. Смешанная операция
+\[
+\hat{\boldsymbol g}^{(i, j)}(\boldsymbol x^{(i)}) = \langle\boldsymbol{softmax}(\boldsymbol \alpha^{(i, j)}), \vec{\boldsymbol g}^{(i, j)}(\boldsymbol{x}^{(i)})\rangle.
+\]
+\item Задана выборка $\mathfrak{D} = \mathfrak{D}_\text{train} \cup \mathfrak{D}_\text{val}$. Задана функция потерь $\mathcal{L}_\text{train}, ~\mathcal{L}_\text{val}$. Пусть $\boldsymbol\alpha = [\boldsymbol\alpha^{(i, j)}]$. Пусть $\boldsymbol w$ -- параметры модели. Двухуровневая задача оптимизации
+\[
+\min_{\boldsymbol\alpha}\mathcal{L}_\text{val}(\boldsymbol w^*, \boldsymbol\alpha),
+\]
+\[
+\mathrm{s.t.} ~~\boldsymbol w^* = \arg\min_{\boldsymbol w}\mathcal{L}_\text{train}(\boldsymbol w, \boldsymbol\alpha)
+\]
+\end{itemize}
+\end{frame}
+
+
+
+
+
+\begin{frame}{Архитектура модели}
+\begin{figure}
+\centering
+\begin{minipage}{.5\textwidth}
+  \centering
+  \includegraphics[width=.7\linewidth]{Graph_no_lambda.pdf}
+\end{minipage}%
+\begin{minipage}{.5\textwidth}
+\begin{itemize}
+\item Смешанная операция:
+\[
+\hat{\boldsymbol g}^{(i, j)} = {\color{red}{\text{softmax}(\boldsymbol\alpha^{(i, j)})_1\boldsymbol{g}^{(i, j)}_1(\boldsymbol x^{(i)})}} + 
+\]
+\[
+{\color{ao(english)}{\text{softmax}(\boldsymbol\alpha^{(i, j)})_2\boldsymbol{g}^{(i, j)}_2(\boldsymbol x^{(i)})}} + 
+\]
+\[
+{\color{bleudefrance}{\text{softmax}(\boldsymbol\alpha^{(i, j)})_3\boldsymbol{g}^{(i, j)}_3(\boldsymbol x^{(i)})}} 
+\]
+\end{itemize}
+ 
+\end{minipage}%
+\end{figure}
+\end{frame}
+
+
+
+
+
+\begin{frame}{Распределение гумбель-софтмакс}
+
+Распределение гумбель-софтмакс определено на симплексе. Пусть $\boldsymbol X \sim \mathcal{GS}(\boldsymbol\alpha, t)$, где
+$\boldsymbol\alpha \in \mathbb{R}^n_{++}, ~t > 0$.
+
+\begin{figure}
+ \begin{minipage}[t]{.2\textwidth}
+        \centering
+\begin{tikzpicture}[%
+x={(1.7cm,0cm)},
+y={(0cm,1.7cm)},
+]
+
+\coordinate (A) at (0,0); 
+\coordinate (B) at (1,0) ;
+\coordinate (C) at (0.5,0.86); 
+
+%Ecken
+\node[circle,scale=0.5,fill=black,draw=black](Ap) at (0,0){};
+\node[circle,scale=0.5,fill=black,draw=black](Bp) at (1,0){};
+\node[circle,scale=0.5,fill=black,draw=black](Cp) at (0.5,0.86){};
+
+%Kanten
+\draw[] (A)
+-- (B)  node[midway, below]{}
+-- (C)      node[midway, right]{}
+-- (A)  node[midway, left]{};
+
+\end{tikzpicture}
+\caption*{$t\to0$}
+\end{minipage}
+\hfill
+ \begin{minipage}[t]{.2\textwidth}
+   \includegraphics[width=\textwidth]{gs0995.png}
+\caption*{$t=0.995$}
+\end{minipage}
+\hfill
+ \begin{minipage}[t]{.2\textwidth}
+   \includegraphics[width=\textwidth]{gs5.png}
+\caption*{$t=5.0$}
+\end{minipage}
+
+\end{figure}
+
+
+\end{frame}
+
+
+\begin{frame}{Контроль сложности с помощью гиперсети}
+\begin{itemize}
+\item Смешанная операция
+\[
+\hat{\boldsymbol g}^{(i, j)}(\boldsymbol x^{(i)}) = \langle\boldsymbol \gamma^{(i, j)}, \vec{\boldsymbol g}^{(i, j)}\rangle, \quad \boldsymbol\gamma^{(i, j)} \sim \mathcal{GS}(\boldsymbol{exp}(\boldsymbol\alpha^{(i, j)}), t).
+\]
+\item Пусть $\Lambda \subset \mathbb{R}$ -- множество параметров, задающих сложность. Гиперсеть -- это параметрическое отображение из множества $\Lambda$ во множество структурных параметров модели
+\[
+\boldsymbol\alpha^{(i, j)} = \boldsymbol\alpha^{(i, j)}(\lambda, \boldsymbol{a}^{(i, j)}), \quad \lambda \in \Lambda.
+\]
+\item В работе используется кусочно-линейная гиперсеть
+\[
+\boldsymbol\alpha^{(i, j)}(\lambda, \boldsymbol{a}^{(i, j)}) = \sum_{k=0}^{N-1}\left(\frac{\lambda - t_k}{t_{k+1}-t_k}\boldsymbol{a}_k^{(i, j)} + \left(1 - \frac{\lambda - t_k}{t_{k+1}-t_k}\right)\boldsymbol{a}_{k+1}^{(i, j)}\right)I[\lambda \in [t_k, t_{k+1}]]
+\]
+\end{itemize}
+\end{frame}
+
+
+
+
+
+
+\begin{frame}{DARTS с использованием гиперсети}
+
+\begin{figure}
+\centering
+\begin{minipage}{.5\textwidth}
+  \centering
+  \includegraphics[width=.7\linewidth]{Graph_no_lambda.pdf}
+\end{minipage}%
+\begin{minipage}{.5\textwidth}
+  \centering
+  \includegraphics[width=.7\linewidth]{Graph_lambda.pdf}
+\end{minipage}%
+\end{figure}
+ Структурные параметры порождаются гиперсетью, зависящей от коэффициента, задающего сложность архитектуры. Структурные параметры подчинены распределению Gumbel-Softmax.
+\end{frame}
+
+
+
+
+
+
+
+\begin{frame}{Задача оптимизации}
+\begin{itemize}
+\item Пусть вектор $\boldsymbol n(\vec{\boldsymbol g}^{(i, j)})$ хранит количество параметров каждого отображения. Регуляризатор, контролирующий сложность
+\[
+\lambda\sum_{(i, j)}\langle\boldsymbol{softmax}\left(\boldsymbol\alpha^{(i, j)}(\lambda, \boldsymbol{a}^{(i, j)})\right), \boldsymbol{n}(\vec{\boldsymbol g}^{(i, j)}) \rangle.
+\]
+\item Пусть задано распределение $p(\lambda)$ на $\Lambda$. Пусть $\boldsymbol\gamma = [\boldsymbol\gamma^{(i, j)}]$. Параметры $\boldsymbol{a} = [\boldsymbol a^{(i, j)}]$ гиперсети находятся из задачи оптимизации
+\[
+\min_{\boldsymbol{a}}\mathsf{E}_{\lambda \sim p(\lambda)}\bigg(\mathsf{E}_{\boldsymbol\gamma}\mathcal{L}_\text{val}(\boldsymbol w^*, \boldsymbol\gamma) + \lambda\sum_{(i, j)}\langle\boldsymbol{softmax}\left(\boldsymbol\alpha^{(i, j)}(\lambda, \boldsymbol{a}^{(i, j)})\right), \boldsymbol{n}(\vec{\boldsymbol g}^{(i, j)}) \rangle\bigg),
+\]
+\[
+\mathrm{s.t.} ~~ \boldsymbol{w}^* = \arg\min_{\boldsymbol w}\mathsf{E}_{\lambda \sim p(\lambda)}\mathsf{E}_{\boldsymbol\gamma}\mathcal{L}_\text{train}(\boldsymbol w, \boldsymbol\gamma).
+\]
+\end{itemize}
+\end{frame}
+
+
+
+
+\begin{frame}{Постановка вычислительного эксперимента}
+
+
+\begin{itemize}
+\item Цель эксперимента -- получение зависимости обобщающей способности модели от количества её параметров.
+\item Вычислительный эксперимент проводится на выборке Fashion-MNIST. Сравниваются архитектуры, полученные с помощью DARTS, предлагаемого метода и случайные архитектуры.
+\item Модель состоит из трех ячеек. Коэффициент $\lambda \sim \mathcal{U}[10^{-10}, 10^{-6}]$.  Во время обучения температура распределения гумбель-софтмакс понижалась от 1 до 0.2.
+\end{itemize}
+
+\end{frame}
+
+
+
+
+
+\begin{frame}{Результаты вычислительного эксперимента}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.6\textwidth]{workshop_scatter.png}
+    \caption*{Зависимость качества классификации от количества параматров модели.}
+\end{figure}
+Предложенный метод позволяет контролировать сложность архитектуры, изменяя коэффициент регуляризации $\lambda$.
+
+\end{frame}
+
+
+\begin{frame}{Полученные архитектуры}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.6\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{genotype_0_0_0.eps}
+  \caption{Архитектура, полученная при $\lambda = 10^{-10}$.}
+\end{subfigure}%
+\\
+\begin{subfigure}{0.6\textwidth}
+  \centering
+  \includegraphics[width=\linewidth]{genotype_0_1_0.eps}
+  \caption{Архитектура, полученная при $\lambda = 10^{-6}$.}
+\end{subfigure}
+\end{figure}
+Чем больше коэффициент регуляризации $\lambda$, тем проще получаемая архитектура.
+\end{frame}
+
+
+\begin{frame}{Заключение}
+    \begin{itemize}
+        \item Предложен метод, позволяющий контролировать сложность модели в процессе поиска архитектуры.
+        \item Метод обладает тем свойством, что изменение сложности итоговой модели происходит изменением коэффициента, задающего сложность архитектуры,  без дополнительного обучения.
+        \item Также результаты показывают, что данный метод сопоставим по качеству с DARTS.
+    \end{itemize}
+\end{frame}
+
+%----------------------------------------------------------------------------------------------------------
+\end{document} 
